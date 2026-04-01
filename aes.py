@@ -59,11 +59,46 @@ def shift_rows(block):
         state_array.append(shifted_row)
     return state_array
 
-def mix_columns(block):
-    
+# Galois Field Mulitply by 2
+def bitwise_left_shift(byte):
+    shifted = byte << 1
+    if byte & 0x80:
+        shifted ^= 0x1B
+    return shifted & 0xFF
+
+def xor_old_new(state_byte, shifted_byte):
+    return state_byte ^ shifted_byte
+
+def x1(byte):
+    return byte
+
+def x2(byte):
+    return bitwise_left_shift(byte)
+
+def x3(byte):
+    return xor_old_new(bitwise_left_shift(byte), byte)
+
+def mix_columns(col):
+    d0 = x2(col[0]) ^ x3(col[1]) ^ x1(col[2]) ^ x1(col[3])
+    d1 = x1(col[0]) ^ x2(col[1]) ^ x3(col[2]) ^ x1(col[3])
+    d2 = x1(col[0]) ^ x1(col[1]) ^ x2(col[2]) ^ x3(col[3])
+    d3 = x3(col[0]) ^ x1(col[1]) ^ x1(col[2]) ^ x2(col[3])
+    return [d0, d1, d2, d3] 
+
+state_byte = 146
+output_byte = xor_old_new(state_byte, bitwise_left_shift(state_byte))
+
+print(state_byte)
+print(output_byte)
 
 first = sub_bytes(input_bytes)
 second = shift_rows(first)
 
-print(first)
 print(second)
+
+#for round in range(iterations):
+#    sub_bytes(state_array)
+#    shift_rows(state_array)
+#    mix_columns(state_array)
+#    #add_round_key(state_array,w)
+#    return state_array
