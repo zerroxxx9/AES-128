@@ -3,11 +3,6 @@
 # Schlüssel der Länge 128, 192 oder 256 Bit verschlüsselt
 # 10 Iterationen (128)
 
-plaintext = "testtest"
-iterations = 10
-
-
-
 Sbox = (
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
     0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
@@ -27,14 +22,18 @@ Sbox = (
     0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16
 )
 
-#textToBytes = list(plaintext.encode('utf-8'))
-#buffer = textToBytes + [0] * (16 - len(textToBytes))
-#print(buffer)
-
-#def subBytes(block):
-#    return [Sbox[byte] for byte in block]        
-
-#buffer = subBytes(buffer)
+Rcon = [
+    [0x01, 0x00, 0x00, 0x00],
+    [0x02, 0x00, 0x00, 0x00],
+    [0x04, 0x00, 0x00, 0x00],
+    [0x08, 0x00, 0x00, 0x00],
+    [0x10, 0x00, 0x00, 0x00],
+    [0x20, 0x00, 0x00, 0x00],
+    [0x40, 0x00, 0x00, 0x00],
+    [0x80, 0x00, 0x00, 0x00],
+    [0x1b, 0x00, 0x00, 0x00],
+    [0x36, 0x00, 0x00, 0x00]
+]
 
 input_bytes = [
     [116,101,115,116],
@@ -59,7 +58,6 @@ def shift_rows(block):
         state_array.append(shifted_row)
     return state_array
 
-# Galois Field Mulitply by 2
 def bitwise_left_shift(byte):
     shifted = byte << 1
     if byte & 0x80:
@@ -78,27 +76,63 @@ def x2(byte):
 def x3(byte):
     return xor_old_new(bitwise_left_shift(byte), byte)
 
-def mix_columns(col):
+def transform(col):
     d0 = x2(col[0]) ^ x3(col[1]) ^ x1(col[2]) ^ x1(col[3])
     d1 = x1(col[0]) ^ x2(col[1]) ^ x3(col[2]) ^ x1(col[3])
     d2 = x1(col[0]) ^ x1(col[1]) ^ x2(col[2]) ^ x3(col[3])
     d3 = x3(col[0]) ^ x1(col[1]) ^ x1(col[2]) ^ x2(col[3])
     return [d0, d1, d2, d3] 
 
-state_byte = 146
-output_byte = xor_old_new(state_byte, bitwise_left_shift(state_byte))
+def mix_columns(block):
+    state_array = []
+    for i, row in enumerate(block):
+        new_row = transform(row)
+        state_array.append(new_row)
+    return state_array
 
-print(state_byte)
-print(output_byte)
+def rot_words(block):
+    return block[1:] + block[:1]
 
-first = sub_bytes(input_bytes)
-second = shift_rows(first)
+def sub_words(block):
+    state_array = []
+    for i, byte in enumerate(block):
+        new_byte = Sbox[byte] 
+        state_array.append(new_byte)
+    return state_array
 
-print(second)
+def key_expansion(key, block):
+    state_array = []
+    for i in range(key):
+        state_array[i] = block[i]
+        if i % range(key):
+            temp = sub_words(rot_words(temp)) ^ Rcon[i]
+        elif range(key) > 6 and i % range(key) == 4:
+            temp = sub_words(temp)
+        state_array[i] = state_array[i] ^ temp
+    return state_array
 
-#for round in range(iterations):
-#    sub_bytes(state_array)
-#    shift_rows(state_array)
-#    mix_columns(state_array)
-#    #add_round_key(state_array,w)
-#    return state_array
+def add_round_key(block):
+    state_array = []
+    for row in block:
+        new_row = []
+        for i, byte in enumerate(row):
+            transform_state = byte ^ key_expansion(i, block) 
+            new_row.append(transform_state)
+        state_array.append(new_row)
+    return state_array
+
+
+def cipher(input, Nr, w):
+    state = input
+    add_round_key(state)
+    for round in range(Nr):
+        sub_bytes(state)
+        shift_rows(state)
+        mix_columns(state)
+        add_round_key(state)
+    sub_bytes(state)
+    shift_rows(state)
+    add_round_key(state)
+    return state
+
+cipher(input_bytes)
