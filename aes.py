@@ -104,9 +104,9 @@ def key_expansion(key, block):
     state_array = []
     for i in range(key):
         state_array[i] = block[i]
-        if i % range(key):
+        if i % len(key):
             temp = sub_words(rot_words(temp)) ^ Rcon[i]
-        elif range(key) > 6 and i % range(key) == 4:
+        elif len(key) > 6 and i % len(key) == 4:
             temp = sub_words(temp)
         state_array[i] = state_array[i] ^ temp
     return state_array
